@@ -1,157 +1,56 @@
-# 📄 Evidencia
+# 🧠 CPU del Robot - Descripción del Problema
 
-En esta práctica, se busca desarrollar una pequeña interfaz de lenguaje natural controlado para emitir comandos a un robot virtual. Este robot es capaz de realizar acciones simples como moverse, girar y detenerse. Las instrucciones deben seguir una estructura clara, amable y definida, similar a cómo una persona se dirigía educadamente a un asistente robótico.  
-El objetivo principal es contruir el analizador léxico (Lex) y un analizador sintáctico (YACC) capaces de procesar y validar un conjunto restringido de isntrucciones escritas en lenguaje natural simple.
+## Objetivo General
 
----
+Diseñar una clase `CPU` en Python que funcione como el "cerebro" de un robot, capaz de:
 
-## 🔍 Analizador léxico (LEX)
-
-El analizador léxico tiene la tarea de leer una entrada que contiene instrucciones destinadas a un robot y desglosarla en unidades léxicas de importancia denominadas tokens. Estas unidades facilitarán al compilador la comprensión de los diferentes elementos de las frases, tales como:
-
-- Sustantivos: indican entidades o elementos del entorno del robot (ej. "Robot", "blocks", "degrees").  
-- Verbos: describen las acciones que el robot puede ejecutar (ej. "move", "turn").  
-- Palabras de cortesía: ayudan a que las instrucciones sean más "humanas" y amables (ej. "please").  
-- Números: representan cantidades ({1-10}, {90, 180, 270, 360}).  
-- Conectores y preposiciones: indican orden o dirección (ej. "and", "then", "ahead", "forward", "backwards").  
-
-El analizador léxico debe tener la habilidad de identificar estas categorías, pasar por alto espacios o tabulaciones, y informar sobre cualquier símbolo no identificado como error.
+1. Leer instrucciones desde un archivo `instructions.asm`.
+2. Ejecutar cada instrucción en una cuadrícula bidimensional.
+3. Dibujar el estado del campo tras cada instrucción.
+4. Marcar visualmente la trayectoria del robot, el punto inicial (`S`), el punto final (`E`), y su dirección actual (`↑`, `→`, `↓`, `←`).
 
 ---
 
-### 📌 Definición de tokens
+## Especificaciones Técnicas
 
-- "Robot"               { return SUBJECT; }
-- "robot"               { return SUBJECT; }
-- "Please"              { return COURTESY_WORD; }
-- "please"              { return COURTESY_WORD; }
-- "move"                { return MOVE; }
-- "turn"                { return TURN; }
-- [1-9]+                { yylval.num = atoi(yytext); return NUMBER; }
-- 90                    { yylval.num = atoi(yytext); return DEGREE; }
-- 180                   { yylval.num = atoi(yytext); return DEGREE; }
-- 270                   { yylval.num = atoi(yytext); return DEGREE; }
-- 360                   { yylval.num = atoi(yytext); return DEGREE; }
-- "blocks"              { return BLOCKS; }
-- "block"               { return BLOCKS; }
-- "degrees"             { return DEGREES; }
-- "ahead"               { return DIRECTION; }
-- "forward"             { return DIRECTION; }
-- "backwards"           { return BACKWARD; }
-- "backward"            { return BACKWARD; }
-- "and then"            { return CONNECTOR; }
-- "then"                { return CONNECTOR; }
-- "next"                { return CONNECTOR; }
-- "and finally"         { return CONNECTOR; }
-- ","                   { return COMMA; }
-- "."                   { return DOT; }
-- [ \t\n]+              { /* skip espacios vacios */ }
-- .                     { printf("Illegal character: %s\n", yytext); return -1; }
+### Clase: `CPU`
 
+- **Atributos principales**:
+  - `filename`: nombre del archivo `.asm` que contiene las instrucciones.
+  - `grid_size`: tamaño del campo (10x10).
+  - `field`: matriz de caracteres que representa el campo.
+  - `x, y`: coordenadas actuales del robot (inicia en el centro).
+  - `angle`: orientación actual del robot en grados (0=arriba, 90=derecha, 180=abajo, 270=izquierda).
 
+### Métodos:
 
-### ✅ Lista de ejemplos aceptados:
-
-- Robot please move 3 blocks ahead, and then turn 90 degrees.  
-- Please robot move 3 blocks, and then turn 360 degrees.  
-- Robot please move 3 blocks ahead and then turn 90 degrees, then move 2 blocks  
-
-### ❌ Ejemplos rechazados:
-
-- Robot turn 80 degrees  
-- Robot please move 8 blocks now.  
-- Robot please turn 78 degrees  
+- `__init__`: Inicializa la CPU, el campo, las coordenadas y el ángulo.
+- `load_instructions`: Lee el archivo `.asm` y convierte cada línea en una instrucción.
+- `execute`: Ejecuta cada instrucción, actualiza el campo y dibuja tras cada paso.
+- `turn(angle)`: Cambia el ángulo del robot.
+- `move(steps)`: Avanza en la dirección actual cierta cantidad de pasos, marcando su camino con `*`.
+- `get_direction()`: Retorna el vector de movimiento según el ángulo.
+- `get_direction_symbol()`: Retorna el símbolo de dirección visual (`↑`, `→`, `↓`, `←`).
+- `draw_field()`: Dibuja el campo en consola.
 
 ---
 
-## 🧠 Analizador sintáctico (YACC)
+## Formato de Instrucciones (`instructions.asm`)
 
-El analizador sintáctico necesita emplear los tokens suministrados por Lex para verificar si la secuencia de instrucciones satisface la gramática prevista. El objetivo es establecer una gramática libre de contexto (CFG) no ambigua, que facilite la identificación únicamente de aquellas frases que constituyan instrucciones válidas para el robot.
-
-Las frases válidas deben satisfacer las siguientes propiedades:
-
-- Iniciar siempre con la palabra "Robot".  
-- Usar formas educadas o directas pero correctas (como "please move", "turn", "stop").  
-- Incluir información suficiente sobre la acción: qué hacer, cuántos bloques avanzar, cuántos grados girar, etc. Cabe aclarar que deben de ser los números dentro del rango de lo que se pide.  
-
-En cambio, el sistema debe tener la habilidad de descartar frases ambiguas, incompletas o incorrectas, como las que alteren el orden de las palabras, empleen términos no identificados o muestren una sintaxis confusa.
-
----
-
-### 📐 Definición de CFG
-
-```bnf
-%%
-program:
-    sentence_list
-    ;
-
-sentence_list:
-    structure_sentence DOT
-    | structure_sentence DOT sentence_list
-    ;
-
-structure_sentence:
-    requirements sentence requirements{
-        if (please_counter == 0){
-            yyerror("Syntax error: You must use at least 'please' at the beginning or end of the sentence.\n");
-            YYABORT;
-        }
-            please_counter=0;
-    }
-    ;
-
-requirements:
-    /* nothing */
-    | SUBJECT COURTESY_WORD {please_counter=1;}
-    | COURTESY_WORD SUBJECT {please_counter=1;}
-    | SUBJECT
-    | COURTESY_WORD {please_counter=1;}
-    ;
-
-sentence:
-    complex_verb
-    ;
+El archivo `.asm` debe contener líneas con el siguiente formato:
 
 
-complex_verb:
-    verb_phrase
-    | verb_phrase CONNECTOR sentence
-    ;
+- MOV,3
+- TURN,90
+- MOV,2
+- TURN,90
+- MOV,4
 
-optional_comma:
-    /* nothing */
-    | COMMA
-    ;
+MOV,n: Mueve al robot n pasos en la dirección actual.
+TURN,angle: Gira el robot angle grados en sentido horario.
 
-verb_phrase:
-    move_phrase optional_comma
-    | move_phrase DIRECTION optional_comma
-    | rotate_phrase optional_comma
-    | move_backward_phrase optional_comma 
-    ;
+## Validaciones
 
-move_phrase:
-    MOVE NUMBER BLOCKS
-    {
-        fprintf(output, "MOV,%d\n", $2);
-    }
-    ;
-
-move_backward_phrase:
-    MOVE NUMBER BLOCKS BACKWARD
-    {
-        fprintf(output, "TURN,180\n");
-        fprintf(output, "MOV,%d\n", $2);
-        fprintf(output, "TURN,180\n");
-    }
-    ;
-
-rotate_phrase:
-    TURN DEGREE DEGREES
-    {
-        fprintf(output, "TURN,%d\n", $2);
-    }
-    ;
-
-%%
+- El robot no puede salirse de los límites del campo (10x10).
+- Si intenta hacerlo, el programa se detiene mostrando un error.
+- Solo se permite avanzar dentro del rango [0, 9] en ambas coordenadas.
